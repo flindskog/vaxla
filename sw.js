@@ -13,6 +13,10 @@ self.addEventListener("activate", e => {
   );
 });
 
+self.addEventListener("message", e => {
+  if (e.data === "version" && e.ports[0]) e.ports[0].postMessage(VERSION);
+});
+
 self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);
   if (e.request.method !== "GET") return;

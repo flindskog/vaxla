@@ -110,6 +110,7 @@ h1{margin:0;font-size:1.375rem;font-weight:800;letter-spacing:-.02em}
 .opt input{width:20px;height:20px;accent-color:var(--accent);margin:0}
 .opt .code{width:3.2em}
 .opt .name{margin:0;font-size:.875rem;color:var(--ink)}
+.build{margin:0;padding:4px 20px 12px;font-size:.75rem;color:var(--muted);text-align:center}
 @media (prefers-reduced-motion: reduce){.key,.pad-wrap{transition:none}.app.editing .active .caret::after{animation:none}}
 </style>
 </head>
@@ -155,6 +156,7 @@ h1{margin:0;font-size:1.375rem;font-weight:800;letter-spacing:-.02em}
     </div>
     <p class="sheet-note">Välj minst två.</p>
     <div class="opts" id="opts"></div>
+    <p class="build" id="build"></p>
   </div>
 </div>
 
@@ -498,7 +500,22 @@ h1{margin:0;font-size:1.375rem;font-weight:800;letter-spacing:-.02em}
       const n = document.createElement("span"); n.className = "name"; n.textContent = NAMES[code] || code;
       lab.append(cb, c, n); optsEl.appendChild(lab);
     }
+    renderBuild();
     sheetWrap.classList.add("open"); $("doneBtn").focus();
+  }
+  // Version comes from the active service worker; timestamp is the server's Last-Modified for index.html.
+  function renderBuild(){
+    const parts = [];
+    const mod = new Date(document.lastModified);
+    // Without a Last-Modified header browsers report the current time, which says nothing.
+    if (!isNaN(mod) && Date.now() - mod > 5000)
+      parts.push(mod.toLocaleString("sv-SE", {year:"numeric", month:"2-digit", day:"2-digit", hour:"2-digit", minute:"2-digit"}));
+    $("build").textContent = parts.join(" · ");
+    const sw = navigator.serviceWorker && navigator.serviceWorker.controller;
+    if (!sw) return;
+    const ch = new MessageChannel();
+    ch.port1.onmessage = ev => { parts.unshift(ev.data); $("build").textContent = parts.join(" · "); };
+    sw.postMessage("version", [ch.port2]);
   }
   function closeSheet(){ sheetWrap.classList.remove("open"); $("editBtn").focus(); }
   $("editBtn").addEventListener("click", openSheet);
