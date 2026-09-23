@@ -1,0 +1,514 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Växla</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Växla">
+<meta name="theme-color" content="#E6ECEE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F191F" media="(prefers-color-scheme: dark)">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E6ECEE; --ink:#13222B; --muted:#5E6F78; --line:#CBD6DA;
+  --key:#FFFFFF; --key-op:#D3DEE2; --accent:#0E6B5A; --accent-ink:#FFFFFF;
+  --row-active:#FFFFFF; --sheet:#F4F7F8; --scrim:rgba(19,34,43,.35);
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F191F; --ink:#E4ECEF; --muted:#8A9CA5; --line:#22323B;
+    --key:#1A2830; --key-op:#25373F; --accent:#46BFA3; --accent-ink:#08201A;
+    --row-active:#17252D; --sheet:#132027; --scrim:rgba(0,0,0,.55);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F191F; --ink:#E4ECEF; --muted:#8A9CA5; --line:#22323B;
+  --key:#1A2830; --key-op:#25373F; --accent:#46BFA3; --accent-ink:#08201A;
+  --row-active:#17252D; --sheet:#132027; --scrim:rgba(0,0,0,.55);
+}
+*,*::before,*::after{box-sizing:border-box}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{
+  height:100%;margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Manrope",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-feature-settings:"tnum" 1;-webkit-tap-highlight-color:transparent;
+  -webkit-user-select:none;user-select:none;
+}
+button{font:inherit;color:inherit}
+button:focus-visible,label:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.app{height:100%;max-width:460px;margin:0 auto;display:flex;flex-direction:column}
+header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 2px}
+h1{margin:0;font-size:1.375rem;font-weight:800;letter-spacing:-.02em}
+.link{background:none;border:0;padding:8px 0;color:var(--accent);font-weight:600;font-size:.9375rem;cursor:pointer}
+.status{display:block;background:none;border:0;padding:0 20px 10px;color:var(--muted);font-size:.8125rem;text-align:left;cursor:pointer}
+.list{flex:1;overflow-y:auto;padding:0 10px;min-height:0}
+.row{
+  display:grid;grid-template-columns:auto auto minmax(0,1fr);align-items:center;gap:6px;
+  padding:6px 6px 6px 0;border-bottom:1px solid var(--line);position:relative;background:var(--bg);
+}
+.row.active{background:var(--row-active);border-radius:16px;border-bottom-color:transparent;padding:8px 8px 8px 0}
+.row:has(+ .row.active){border-bottom-color:transparent}
+.list.sorting .row:not(.dragging){transition:transform .16s ease}
+.row.dragging{z-index:2;border-radius:16px;border-bottom-color:transparent;box-shadow:0 10px 28px rgba(0,0,0,.18)}
+.grip{
+  width:34px;height:44px;display:grid;place-items:center;border:0;background:none;
+  color:var(--muted);cursor:grab;touch-action:none;border-radius:10px;opacity:.7
+}
+.grip svg{fill:currentColor}
+.row.dragging .grip{cursor:grabbing;opacity:1;color:var(--accent)}
+.label{padding:6px 4px;min-width:4.5em;align-self:stretch;display:flex;flex-direction:column;justify-content:center}
+.row:not(.active) .label{cursor:pointer}
+.field{
+  display:block;min-width:0;text-align:right;border:1.5px solid transparent;background:none;
+  border-radius:12px;padding:8px 10px;cursor:text
+}
+.row:not(.active) .field:hover{border-color:var(--line)}
+.app.editing .row.active .field{border-color:var(--accent)}
+.code{font-weight:700;font-size:1rem;letter-spacing:.01em}
+.name{display:block;font-size:.75rem;color:var(--muted);font-weight:500;margin-top:2px}
+.amount{display:block;font-size:1.375rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rate{display:block;font-size:.75rem;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.active .amount{font-size:2rem;font-weight:700;color:var(--accent);letter-spacing:-.02em}
+.active .expr{display:block;font-size:.9375rem;color:var(--muted);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;direction:rtl;min-height:1.35em}
+.active .expr span{direction:ltr;unicode-bidi:bidi-override}
+.pad-wrap{display:grid;grid-template-rows:0fr;transition:grid-template-rows .22s ease}
+.app.editing .pad-wrap{grid-template-rows:1fr}
+.pad-wrap > div{overflow:hidden;min-height:0}
+.pad{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding:12px 14px 14px}
+.hint{display:block;font-size:.75rem;color:var(--muted);margin-top:4px}
+.app.editing .hint{display:none}
+.app.editing .active .caret::after{content:"";display:inline-block;width:2px;height:.9em;margin-left:3px;vertical-align:-.08em;background:var(--accent);animation:blink 1s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+.key{
+  height:clamp(50px,7.4vh,64px);border:0;border-radius:18px;background:var(--key);
+  font-size:1.375rem;font-weight:600;cursor:pointer;transition:transform .06s ease
+}
+.key.op{background:var(--key-op)}
+.key.eq{background:var(--accent);color:var(--accent-ink);font-size:1.5rem}
+.key:active{transform:scale(.96)}
+.sheet-wrap{position:fixed;inset:0;background:var(--scrim);display:none;align-items:flex-end;justify-content:center;z-index:10}
+.sheet-wrap.open{display:flex}
+.sheet{
+  width:100%;max-width:460px;max-height:80%;background:var(--sheet);border-radius:22px 22px 0 0;
+  display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px)
+}
+.sheet-head{display:flex;justify-content:space-between;align-items:center;padding:16px 20px 8px}
+.sheet-head h2{margin:0;font-size:1.0625rem;font-weight:700}
+.sheet-note{margin:0;padding:0 20px 8px;font-size:.8125rem;color:var(--muted)}
+.opts{overflow-y:auto;padding:0 10px 12px}
+.opt{display:flex;align-items:center;gap:12px;padding:12px 10px;border-bottom:1px solid var(--line);cursor:pointer}
+.opt input{width:20px;height:20px;accent-color:var(--accent);margin:0}
+.opt .code{width:3.2em}
+.opt .name{margin:0;font-size:.875rem;color:var(--ink)}
+@media (prefers-reduced-motion: reduce){.key,.pad-wrap{transition:none}.app.editing .active .caret::after{animation:none}}
+</style>
+</head>
+<body>
+<div class="app" id="app">
+  <header>
+    <h1>Växla</h1>
+    <button class="link" id="editBtn" type="button">Valutor</button>
+  </header>
+  <button class="status" id="status" type="button"></button>
+  <div class="list" id="list" role="list"></div>
+  <div class="pad-wrap"><div>
+  <div class="pad" id="pad">
+    <button class="key op" data-k="C" type="button" aria-label="Rensa">C</button>
+    <button class="key op" data-k="back" type="button" aria-label="Radera">⌫</button>
+    <button class="key op" data-k="%" type="button">%</button>
+    <button class="key op" data-k="/" type="button" aria-label="Dividera">÷</button>
+    <button class="key" data-k="7" type="button">7</button>
+    <button class="key" data-k="8" type="button">8</button>
+    <button class="key" data-k="9" type="button">9</button>
+    <button class="key op" data-k="*" type="button" aria-label="Multiplicera">×</button>
+    <button class="key" data-k="4" type="button">4</button>
+    <button class="key" data-k="5" type="button">5</button>
+    <button class="key" data-k="6" type="button">6</button>
+    <button class="key op" data-k="-" type="button" aria-label="Minus">−</button>
+    <button class="key" data-k="1" type="button">1</button>
+    <button class="key" data-k="2" type="button">2</button>
+    <button class="key" data-k="3" type="button">3</button>
+    <button class="key op" data-k="+" type="button" aria-label="Plus">+</button>
+    <button class="key" data-k="00" type="button">00</button>
+    <button class="key" data-k="0" type="button">0</button>
+    <button class="key" data-k="." type="button" aria-label="Decimal">.</button>
+    <button class="key eq" data-k="=" type="button" aria-label="Räkna ut">=</button>
+  </div>
+  </div></div>
+</div>
+
+<div class="sheet-wrap" id="sheetWrap">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+    <div class="sheet-head">
+      <h2 id="sheetTitle">Dina valutor</h2>
+      <button class="link" id="doneBtn" type="button">Klar</button>
+    </div>
+    <p class="sheet-note">Välj minst två.</p>
+    <div class="opts" id="opts"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ECB reference rates, base EUR. Used until a live fetch succeeds.
+  const SNAPSHOT = { date: "2026-09-22", rates: {
+    USD:1.1463, JPY:180.17, CZK:24.344, DKK:7.4756, GBP:0.85780, HUF:361.58, PLN:4.3480,
+    RON:5.2660, SEK:11.2463, CHF:0.9393, ISK:138.40, NOK:10.8010, TRY:55.9492, AUD:1.6122,
+    BRL:5.8726, CAD:1.6099, CNY:7.6803, HKD:8.9909, IDR:20426.66, ILS:3.4593, INR:109.5805,
+    KRW:1554.55, MXN:19.7727, MYR:4.6700, NZD:2.0003, PHP:71.602, SGD:1.4612, THB:37.988, ZAR:18.6180
+  }};
+  const NAMES = {
+    EUR:"Euro", USD:"Amerikansk dollar", JPY:"Japansk yen", CZK:"Tjeckisk krona", DKK:"Dansk krona",
+    GBP:"Brittiskt pund", HUF:"Ungersk forint", PLN:"Polsk zloty", RON:"Rumänsk leu", SEK:"Svensk krona",
+    CHF:"Schweizisk franc", ISK:"Isländsk krona", NOK:"Norsk krona", TRY:"Turkisk lira",
+    AUD:"Australisk dollar", BRL:"Brasiliansk real", CAD:"Kanadensisk dollar", CNY:"Kinesisk yuan",
+    HKD:"Hongkongdollar", IDR:"Indonesisk rupiah", ILS:"Israelisk shekel", INR:"Indisk rupie",
+    KRW:"Sydkoreansk won", MXN:"Mexikansk peso", MYR:"Malaysisk ringgit", NZD:"Nyzeeländsk dollar",
+    PHP:"Filippinsk peso", SGD:"Singaporedollar", THB:"Thailändsk baht", ZAR:"Sydafrikansk rand"
+  };
+  const NO_DECIMALS = new Set(["JPY","KRW","IDR","HUF","ISK"]);
+  const LOCALE = "de-CH";
+
+  let rates = Object.assign({EUR:1}, SNAPSHOT.rates);
+  let ratesDate = SNAPSHOT.date;
+  let live = false;
+  let state = { favs:["CHF","SEK","EUR","USD","GBP"], active:"CHF", expr:"100", v:2 };
+  let editing = false;
+  let justEvaluated = false;
+
+  const $ = id => document.getElementById(id);
+  const listEl = $("list"), statusEl = $("status"), optsEl = $("opts"), sheetWrap = $("sheetWrap");
+
+  function readStore(key){ try { const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; } catch(e){ return null; } }
+  function writeStore(key, val){ try { localStorage.setItem(key, JSON.stringify(val)); } catch(e){} }
+
+  function load(){
+    const s = readStore("vaxla.state");
+    if (s && Array.isArray(s.favs)){
+      if (!s.v || s.v < 2){ s.favs = s.favs.filter(c => c !== "NOK"); if (s.active === "NOK") s.active = s.favs[0]; s.v = 2; }
+      state = Object.assign(state, s);
+    }
+    const r = readStore("vaxla.rates");
+    if (r && r.rates && r.date && r.date >= ratesDate){ rates = Object.assign({EUR:1}, r.rates); ratesDate = r.date; }
+    state.favs = state.favs.filter(c => rates[c]);
+    if (state.favs.length < 2) state.favs = ["CHF","SEK","EUR","USD"];
+    if (!state.favs.includes(state.active)) state.active = state.favs[0];
+    if (typeof state.expr !== "string" || !state.expr) state.expr = "0";
+  }
+  const save = () => writeStore("vaxla.state", state);
+
+  // Calculator: recursive descent over + - * / and postfix %.
+  function evaluate(src){
+    const t = []; let i = 0;
+    while (i < src.length){
+      const c = src[i];
+      if (/[\d.]/.test(c)){
+        let j = i; while (j < src.length && /[\d.]/.test(src[j])) j++;
+        const n = src.slice(i, j);
+        if (n === "." || (n.match(/\./g) || []).length > 1) return null;
+        t.push(parseFloat(n)); i = j;
+      } else { t.push(c); i++; }
+    }
+    let p = 0;
+    function factor(){
+      const tok = t[p];
+      if (tok === "-"){ p++; const f = factor(); return f && {v:-f.v, pct:f.pct}; }
+      if (typeof tok !== "number") return null;
+      p++;
+      let pct = false; if (t[p] === "%"){ pct = true; p++; }
+      return {v:tok, pct};
+    }
+    function term(){
+      const f = factor(); if (!f) return null;
+      let v = f.pct ? f.v/100 : f.v, pct = f.pct;
+      while (t[p] === "*" || t[p] === "/"){
+        pct = false;
+        const op = t[p++], g = factor(); if (!g) return null;
+        const gv = g.pct ? g.v/100 : g.v;
+        v = op === "*" ? v*gv : v/gv;
+      }
+      return {v, pct};
+    }
+    function expr(){
+      const a = term(); if (!a) return null;
+      let v = a.v;
+      while (t[p] === "+" || t[p] === "-"){
+        const op = t[p++], b = term(); if (!b) return null;
+        const bv = b.pct ? v*b.v : b.v; // 200 + 10% = 220
+        v = op === "+" ? v+bv : v-bv;
+      }
+      return v;
+    }
+    const v = expr();
+    if (v === null || p !== t.length || !isFinite(v)) return null;
+    return v;
+  }
+  const trimOps = e => e.replace(/[+\-*/]+$/, "");
+  const hasOp = e => /[+*/%]|.-/.test(e);
+  const currentValue = () => { const v = evaluate(trimOps(state.expr)); return v === null ? 0 : v; };
+
+  function toExpr(v){
+    let s = v.toFixed(2);
+    if (s.includes(".")) s = s.replace(/0+$/, "").replace(/\.$/, "");
+    return s === "-0" ? "0" : s;
+  }
+  function fmtAmount(v, code){
+    const d = NO_DECIMALS.has(code) ? 0 : 2;
+    return new Intl.NumberFormat(LOCALE, {minimumFractionDigits:d, maximumFractionDigits:d}).format(v);
+  }
+  function fmtRate(v){
+    const d = v >= 100 ? 2 : v >= 1 ? 4 : 5;
+    return new Intl.NumberFormat(LOCALE, {maximumFractionDigits:d}).format(v);
+  }
+  function fmtExpr(e){
+    return e
+      .replace(/\d+(\.\d*)?/g, m => { const [a, b] = m.split("."); return Number(a).toLocaleString(LOCALE) + (b !== undefined ? "." + b : ""); })
+      .replace(/-/g, (m, off) => off === 0 ? "−" : " − ")
+      .replace(/\+/g, " + ").replace(/\*/g, " × ").replace(/\//g, " ÷ ");
+  }
+  const convert = (v, from, to) => v / rates[from] * rates[to];
+
+  function render(){
+    const val = currentValue();
+    listEl.innerHTML = "";
+    state.favs.forEach((code, idx) => {
+      const active = code === state.active;
+      const row = document.createElement("div");
+      row.className = "row" + (active ? " active" : ""); row.setAttribute("role","listitem"); row.dataset.code = code;
+
+      const grip = document.createElement("button");
+      grip.type = "button"; grip.className = "grip";
+      grip.setAttribute("aria-label", "Flytta " + code + ", position " + (idx + 1) + " av " + state.favs.length + ". Använd pil upp och ned.");
+      grip.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="4.5" cy="3" r="1.3"/><circle cx="9.5" cy="3" r="1.3"/><circle cx="4.5" cy="7" r="1.3"/><circle cx="9.5" cy="7" r="1.3"/><circle cx="4.5" cy="11" r="1.3"/><circle cx="9.5" cy="11" r="1.3"/></svg>';
+      grip.addEventListener("pointerdown", ev => startDrag(ev, row, idx));
+      grip.addEventListener("keydown", ev => {
+        if (ev.key !== "ArrowUp" && ev.key !== "ArrowDown") return;
+        ev.preventDefault(); ev.stopPropagation();
+        const to = idx + (ev.key === "ArrowUp" ? -1 : 1);
+        if (to < 0 || to >= state.favs.length) return;
+        moveFav(idx, to);
+        const g = listEl.querySelectorAll(".grip")[to]; if (g) g.focus();
+      });
+
+      const left = document.createElement("span"); left.className = "label";
+      left.innerHTML = '<span class="code"></span><span class="name"></span>';
+      left.firstChild.textContent = code; left.lastChild.textContent = NAMES[code] || code;
+
+      const field = document.createElement("button");
+      field.type = "button"; field.className = "field";
+      if (active){
+        const ex = document.createElement("span"); ex.className = "expr";
+        const inner = document.createElement("span");
+        inner.textContent = hasOp(state.expr) ? fmtExpr(state.expr) : "";
+        if (hasOp(state.expr)) inner.className = "caret";
+        ex.appendChild(inner);
+        const am = document.createElement("span"); am.className = "amount";
+        am.textContent = hasOp(state.expr) ? fmtAmount(val, code) : fmtExpr(state.expr);
+        if (!hasOp(state.expr)) am.classList.add("caret");
+        const hint = document.createElement("span"); hint.className = "hint"; hint.textContent = "Tryck för att räkna";
+        field.append(ex, am, hint);
+        field.setAttribute("aria-label", "Belopp i " + code + ": " + am.textContent);
+        field.setAttribute("aria-expanded", String(editing));
+        field.addEventListener("click", () => { if (!editing) justEvaluated = true; setEditing(true); });
+      } else {
+        const am = document.createElement("span"); am.className = "amount";
+        am.textContent = fmtAmount(convert(val, state.active, code), code);
+        const r = document.createElement("span"); r.className = "rate";
+        r.textContent = "1 " + state.active + " = " + fmtRate(convert(1, state.active, code)) + " " + code;
+        field.append(am, r);
+        field.setAttribute("aria-label", "Räkna i " + code + ", " + am.textContent);
+        field.addEventListener("click", () => {
+          const nv = convert(val, state.active, code);
+          state.active = code; state.expr = toExpr(nv); justEvaluated = true; save(); render(); setEditing(true);
+        });
+      }
+      if (!active){
+        left.addEventListener("click", () => {
+          const nv = convert(val, state.active, code);
+          state.active = code; state.expr = toExpr(nv); justEvaluated = true; save(); render();
+        });
+      }
+      row.append(grip, left, field);
+      listEl.appendChild(row);
+    });
+  }
+
+  function moveFav(from, to){
+    const f = state.favs.slice(); const [c] = f.splice(from, 1); f.splice(to, 0, c);
+    state.favs = f; save(); render();
+    const a = listEl.querySelector(".row.active .field"); if (a) a.setAttribute("aria-expanded", String(editing));
+  }
+
+  // Pointer-based drag and drop (works with touch, mouse and pen).
+  function startDrag(ev, row, from){
+    if (ev.button !== undefined && ev.button !== 0) return;
+    ev.preventDefault();
+    const rows = Array.from(listEl.children);
+    const rects = rows.map(r => r.getBoundingClientRect());
+    const h = rects[from].height;
+    const startY = ev.clientY, startScroll = listEl.scrollTop;
+    let to = from, dy = 0, raf = 0;
+    const handle = ev.currentTarget;
+    try { handle.setPointerCapture(ev.pointerId); } catch(e){}
+    row.classList.add("dragging"); listEl.classList.add("sorting");
+
+    function layout(){
+      raf = 0;
+      const lr = listEl.getBoundingClientRect();
+      if (lastY < lr.top + 40) listEl.scrollTop -= 8;
+      else if (lastY > lr.bottom - 40) listEl.scrollTop += 8;
+      dy = lastY - startY + (listEl.scrollTop - startScroll);
+      const center = rects[from].top + h / 2 + dy;
+      to = 0;
+      rows.forEach((r, i) => { if (i !== from && rects[i].top + rects[i].height / 2 < center) to++; });
+      rows.forEach((r, i) => {
+        if (i === from){ r.style.transform = "translateY(" + dy + "px)"; return; }
+        let shift = 0;
+        if (from < to && i > from && i <= to) shift = -h;
+        if (from > to && i < from && i >= to) shift = h;
+        r.style.transform = shift ? "translateY(" + shift + "px)" : "";
+      });
+      if (lastY < lr.top + 40 || lastY > lr.bottom - 40) raf = requestAnimationFrame(layout);
+    }
+    let lastY = startY;
+    function onMove(e){ lastY = e.clientY; if (!raf) raf = requestAnimationFrame(layout); }
+    function onUp(){
+      handle.removeEventListener("pointermove", onMove);
+      handle.removeEventListener("pointerup", onUp);
+      handle.removeEventListener("pointercancel", onUp);
+      if (raf) cancelAnimationFrame(raf);
+      listEl.classList.remove("sorting");
+      rows.forEach(r => { r.style.transform = ""; r.classList.remove("dragging"); });
+      if (to !== from) moveFav(from, to);
+    }
+    handle.addEventListener("pointermove", onMove);
+    handle.addEventListener("pointerup", onUp);
+    handle.addEventListener("pointercancel", onUp);
+  }
+
+  function renderStatus(msg){
+    if (msg){ statusEl.textContent = msg; return; }
+    const d = new Date(ratesDate + "T12:00:00").toLocaleDateString("sv-SE", {day:"numeric", month:"short", year:"numeric"});
+    statusEl.textContent = "ECB-kurser " + d + (live ? ", uppdaterade" : ", sparade. Tryck för att uppdatera");
+  }
+
+  async function refresh(){
+    renderStatus("Hämtar kurser…");
+    const urls = ["https://api.frankfurter.dev/v1/latest", "https://api.frankfurter.app/latest"];
+    for (const url of urls){
+      try {
+        const res = await fetch(url, {cache:"no-store"});
+        if (!res.ok) continue;
+        const j = await res.json();
+        if (j && j.rates && j.date){
+          rates = Object.assign({EUR:1}, j.rates); ratesDate = j.date; live = true;
+          writeStore("vaxla.rates", {date:j.date, rates:j.rates});
+          state.favs = state.favs.filter(c => rates[c]);
+          renderStatus(); render(); return;
+        }
+      } catch(e){}
+    }
+    renderStatus();
+  }
+
+  function press(k){
+    let e = state.expr;
+    const digit = /^\d$/.test(k) || k === "00";
+    if (justEvaluated && (digit || k === ".")) e = "0";
+    justEvaluated = false;
+    if (k === "C") e = "0";
+    else if (k === "back") e = e.slice(0, -1) || "0";
+    else if (k === "="){ const v = evaluate(trimOps(e)); if (v !== null){ e = toExpr(v); justEvaluated = true; } }
+    else if ("+-*/".includes(k)){
+      if (e === "0" && k === "-") e = "-";
+      else if (e === "-") return;
+      else if (/[+\-*/]$/.test(e)) e = e.slice(0, -1) + k;
+      else if (/\.$/.test(e)) e = e.slice(0, -1) + k;
+      else e += k;
+    }
+    else if (k === "%"){ if (/\d$/.test(e)) e += "%"; }
+    else if (k === "."){
+      if (/%$/.test(e)) return;
+      const last = e.split(/[+\-*/]/).pop();
+      if (!last.includes(".")) e += last === "" ? "0." : ".";
+    }
+    else if (digit){
+      if (/%$/.test(e)) e += "*";
+      if (k === "00"){ if (!/\d$/.test(e) || /(^|[+\-*/])0$/.test(e)) return; e += "00"; }
+      else if (e === "0") e = k;
+      else if (/(^|[+\-*/])0$/.test(e)) e = e.slice(0, -1) + k;
+      else e += k;
+    }
+    if (e.length > 48) return;
+    state.expr = e; save(); render();
+  }
+
+  function setEditing(on){
+    if (editing === on) return;
+    editing = on;
+    $("app").classList.toggle("editing", on);
+    const f = listEl.querySelector(".row.active .field"); if (f) f.setAttribute("aria-expanded", String(on));
+    const a = listEl.querySelector(".row.active");
+    if (on && a) setTimeout(() => a.scrollIntoView({block:"nearest"}), 230);
+  }
+  document.addEventListener("click", ev => {
+    if (!editing || sheetWrap.classList.contains("open")) return;
+    if (ev.target.closest(".field") || ev.target.closest(".grip") || ev.target.closest("#pad")) return;
+    setEditing(false);
+  });
+  $("pad").addEventListener("click", ev => { const b = ev.target.closest("[data-k]"); if (b) press(b.dataset.k); });
+  document.addEventListener("keydown", ev => {
+    if (sheetWrap.classList.contains("open")){ if (ev.key === "Escape") closeSheet(); return; }
+    if (ev.key === "Escape"){ setEditing(false); return; }
+    const map = {Enter:"=", "=":"=", Backspace:"back", Delete:"C", ",":".", x:"*", X:"*"};
+    const k = map[ev.key] || ev.key;
+    if (/^[\d.+\-*/%=]$/.test(k) || k === "back" || k === "C"){ ev.preventDefault(); setEditing(true); press(k); }
+  });
+  statusEl.addEventListener("click", refresh);
+
+  function openSheet(){
+    optsEl.innerHTML = "";
+    const codes = Object.keys(rates).sort((a, b) => (NAMES[a] || a).localeCompare(NAMES[b] || b, "sv"));
+    for (const code of codes){
+      const lab = document.createElement("label"); lab.className = "opt";
+      const cb = document.createElement("input"); cb.type = "checkbox"; cb.checked = state.favs.includes(code);
+      cb.addEventListener("change", () => {
+        if (cb.checked){ if (!state.favs.includes(code)) state.favs.push(code); }
+        else {
+          if (state.favs.length <= 2){ cb.checked = true; return; }
+          if (code === state.active){
+            const nv = currentValue(), next = state.favs.find(c => c !== code);
+            state.expr = toExpr(convert(nv, code, next)); state.active = next;
+          }
+          state.favs = state.favs.filter(c => c !== code);
+        }
+        save(); render();
+      });
+      const c = document.createElement("span"); c.className = "code"; c.textContent = code;
+      const n = document.createElement("span"); n.className = "name"; n.textContent = NAMES[code] || code;
+      lab.append(cb, c, n); optsEl.appendChild(lab);
+    }
+    sheetWrap.classList.add("open"); $("doneBtn").focus();
+  }
+  function closeSheet(){ sheetWrap.classList.remove("open"); $("editBtn").focus(); }
+  $("editBtn").addEventListener("click", openSheet);
+  $("doneBtn").addEventListener("click", closeSheet);
+  sheetWrap.addEventListener("click", ev => { if (ev.target === sheetWrap) closeSheet(); });
+
+  load(); renderStatus(); render(); refresh();
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") refresh(); });
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+})();
+</script>
+</body>
+</html>
